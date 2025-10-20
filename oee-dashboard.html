@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OEE Dashboard — Aluminum Stamping</title>
+<style>
+:root{
+  --bg:#ffffff; --text:#0b1220; --muted:#49566a; --border:#e6ecf2;
+  --panel:#ffffff; --panel-2:#f5f8fc; --primary:#1967f2; --ok:#1a7f37; --danger:#c92a2a;
+  --shadow:0 10px 28px rgba(16,24,40,.07); --radius:16px; --gap:18px; --pad:20px;
+  --grid-col:300px; --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px; --fs-18:18px; --fs-32:32px;
+  --chart-h: clamp(220px, 36vh, 360px);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font:var(--fs-14)/1.6 var(--font); color:var(--text); background:var(--bg);
+  display:grid; grid-template-rows:auto 1fr; gap:var(--gap)
+}
+.container{padding:0 clamp(16px,4vw,40px) 44px}
+header{
+  position:sticky; top:0; z-index:10; background:rgba(255,255,255,.9);
+  backdrop-filter:saturate(140%) blur(8px); border-bottom:1px solid var(--border)
+}
+.topbar{display:flex; align-items:center; justify-content:space-between; padding:12px clamp(16px,4vw,40px)}
+.title h1{margin:0; font-size:var(--fs-16)}
+.title .sub{color:var(--muted); font-size:var(--fs-12)}
+.filters{display:flex; gap:10px; flex-wrap:wrap}
+.chip{
+  display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:999px;
+  border:1px solid var(--border); background:var(--panel-2); color:var(--muted); font-size:var(--fs-12)
+}
+section{display:grid; gap:var(--gap)}
+.grid{display:grid; gap:var(--gap); grid-template-columns:repeat(auto-fill, minmax(var(--grid-col), 1fr))}
+.grid-3-2{display:grid; gap:var(--gap); grid-template-columns:3fr 2fr}
+@media (max-width:1100px){.grid-3-2{grid-template-columns:1fr}}
+.card{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:var(--pad)
+}
+.card h3{margin:0 0 10px; font-size:var(--fs-13); color:#58677d; font-weight:600}
+.metric{display:flex; align-items:flex-end; gap:12px; justify-content:space-between; padding-top:4px}
+.value{font-size:var(--fs-32); font-weight:800; letter-spacing:.2px}
+.delta{font-size:var(--fs-12); font-weight:700; color:var(--ok)}
+.delta.down{color:var(--danger)}
+.delta::before{content:"▲ ";} .delta.down::before{content:"▼ ";}
+.kpi-notes{color:var(--muted); font-size:var(--fs-12)}
+.chart-title{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+.chart-title h2{margin:0; font-size:var(--fs-18)}
+.muted{color:var(--muted); font-size:var(--fs-12)}
+.chartbox{
+  width:100%; min-height:var(--chart-h);
+  border:1px solid var(--border); border-radius:16px;
+  background:linear-gradient(180deg, var(--panel-2), #fff);
+  overflow:hidden; padding:14px
+}
+svg{width:100%; height:100%}
+.gridline{stroke:#e6ecf2; stroke-width:.7}
+.axistext{fill:var(--muted); font-size:5.2px}
+.pill-bg{fill:#eef3f8; rx:3}
+.pill{fill:#2f3f52; font-size:5.2px; font-weight:600}
+.center{text-anchor:middle}
+table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:12px; border:1px solid var(--border)}
+thead th{background:var(--panel-2); text-align:left; font-size:var(--fs-12); color:var(--muted); padding:10px 12px; border-bottom:1px solid var(--border); position:sticky; top:0}
+tbody td{padding:12px; border-bottom:1px solid var(--border)}
+tbody tr:hover{background:#f9fafb}
+.tag{font-weight:700; font-size:var(--fs-12); padding:4px 8px; border-radius:999px; border:1px solid var(--border); background:#f8fafc}
+.tag.ok{color:var(--ok)} .tag.warn{color:#b4690e} .tag.down{color:var(--danger)}
+@media (prefers-reduced-motion: reduce){*{animation:none !important; transition:none !important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="title">
+      <h1>OEE Dashboard — Aluminum Stamping</h1>
+      <div class="sub">ไลน์ปั๊มอลูมิเนียม • Press Shop • Shift A</div>
+    </div>
+    <div class="filters">
+      <span class="chip">📍 Line: L2</span>
+      <span class="chip">🗓️ วันนี้</span>
+      <span class="chip">🧩 Part: AL-Panel</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <section>
+    <div class="grid">
+      <article class="card">
+        <h3>Overall Equipment Effectiveness</h3>
+        <div class="metric"><div class="value" id="oeeVal">—%</div><div class="delta" id="oeeDelta">—</div></div>
+        <div class="kpi-notes">OEE = Availability × Performance × Quality</div>
+      </article>
+      <article class="card">
+        <h3>Availability</h3>
+        <div class="metric"><div class="value" id="availVal">—%</div><div class="delta" id="availDelta">—</div></div>
+        <div class="kpi-notes">Planned vs Unplanned Stops</div>
+      </article>
+      <article class="card">
+        <h3>Performance</h3>
+        <div class="metric"><div class="value" id="perfVal">—%</div><div class="delta" id="perfDelta">—</div></div>
+        <div class="kpi-notes">Actual vs Ideal Cycle Time</div>
+      </article>
+      <article class="card">
+        <h3>Quality</h3>
+        <div class="metric"><div class="value" id="qualVal">—%</div><div class="delta down" id="qualDelta">—</div></div>
+        <div class="kpi-notes">Good Units / Total Units</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="grid-3-2">
+    <article class="card">
+      <div class="chart-title">
+        <h2>OEE Trend (Shift)</h2>
+        <span class="muted" id="oeeSubtitle"></span>
+      </div>
+      <div class="chartbox">
+        <svg id="oeeLine" viewBox="0 0 120 100" preserveAspectRatio="none"></svg>
+      </div>
+    </article>
+    <article class="card">
+      <div class="chart-title">
+        <h2>Throughput (units/hr)</h2>
+        <span class="muted">by press/line</span>
+      </div>
+      <div class="chartbox">
+        <svg id="throughputCols" viewBox="0 0 120 100" preserveAspectRatio="none"></svg>
+      </div>
+    </article>
+  </section>
+
+  <section>
+    <article class="card">
+      <div class="chart-title">
+        <h2>Stamping Cells</h2>
+        <span class="muted">สถานะเครื่องและพารามิเตอร์หลัก</span>
+      </div>
+      <table aria-label="machines table">
+        <thead>
+          <tr>
+            <th>Machine ID</th>
+            <th>Press Tonnage</th>
+            <th>Utilization</th>
+            <th>Die Temp (°C)</th>
+            <th>Lubrication (ml/min)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="machinesBody"></tbody>
+      </table>
+    </article>
+  </section>
+</div>
+
+<script>
+(function(){
+  const rnd=(a,b)=>Math.random()*(b-a)+a, rndi=(a,b)=>Math.round(rnd(a,b));
+  const clamp=(x,lo,hi)=>Math.max(lo,Math.min(x,hi));
+  const pad={l:14,r:10,t:12,b:20}, W=120,H=100, iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
+  const X=t=>pad.l+t*iw, Y=v=>pad.t+(1-v)*ih;
+  const nf0=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
+
+  const availability=rnd(0.85,0.95), performance=rnd(0.80,0.92), quality=rnd(0.970,0.998);
+  const oee=availability*performance*quality;
+
+  const dA_pp=rnd(-0.01,0.01), dP_pp=rnd(-0.015,0.015), dQ_pp=rnd(-0.005,0.005), dO_pp=rnd(-0.012,0.012);
+  const pctChange=(now,dp)=>{const prev=clamp(now-dp,0.01,0.99); return ((now-prev)/prev)*100};
+
+  const setPct=(id,v,fix=1)=>document.getElementById(id).textContent=(v*100).toFixed(fix)+'%';
+  setPct('availVal',availability,1); setPct('perfVal',performance,1); setPct('qualVal',quality,2);
+  document.getElementById('oeeVal').textContent=(oee*100).toFixed(1)+'%';
+  document.getElementById('oeeSubtitle').textContent=`ล่าสุด ${(oee*100).toFixed(1)}% • เป้า 85%`;
+
+  const showDelta=(id,now,dp)=>{const pc=pctChange(now,dp); const el=document.getElementById(id);
+    el.textContent=(pc>=0?'+':'')+pc.toFixed(1)+'%'; if(pc<0) el.classList.add('down'); else el.classList.remove('down');};
+  showDelta('availDelta',availability,dA_pp); showDelta('perfDelta',performance,dP_pp);
+  showDelta('qualDelta',quality,dQ_pp); showDelta('oeeDelta',oee,dO_pp);
+
+  const oeeSeries=Array.from({length:10},()=>clamp(oee+rnd(-0.035,0.035),0.6,0.98));
+  const lineTicks=[0.6,0.7,0.8,0.9,1.0];
+  let lineSvg=`<rect x="${pad.l}" y="${pad.t}" width="${iw}" height="${ih}" rx="8" fill="#fff" opacity=".45"/>`;
+  lineTicks.forEach(v=>{
+    lineSvg+=`<line class="gridline" x1="${pad.l}" y1="${Y(v)}" x2="${pad.l+iw}" y2="${Y(v)}"/>`+
+             `<text class="axistext" x="${pad.l-2}" y="${Y(v)+2.2}" text-anchor="end">${(v*100).toFixed(0)}%</text>`;
+  });
+  const pts=oeeSeries.map((v,i)=>`${X(i/(oeeSeries.length-1))},${Y(v)}`).join(' ');
+  const target=0.85;
+  lineSvg+=`<line x1="${pad.l}" y1="${Y(target)}" x2="${pad.l+iw}" y2="${Y(target)}" stroke="#9aa9bd" stroke-dasharray="3 3" stroke-width="1"/>`+
+           `<text class="axistext" x="${pad.l+iw-1}" y="${Y(target)-2}" text-anchor="end">Target 85%</text>`+
+           `<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(25,103,242,0.35)"/><stop offset="100%" stop-color="rgba(25,103,242,0)"/></linearGradient></defs>`+
+           `<polygon points="${pad.l},${pad.t+ih} ${pts} ${pad.l+iw},${pad.t+ih}" fill="url(#g1)"/>`+
+           `<polyline points="${pts}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round"/>`;
+  oeeSeries.forEach((v,i)=>{const cx=X(i/(oeeSeries.length-1)), cy=Y(v);
+    lineSvg+=`<circle cx="${cx}" cy="${cy}" r="1.8" fill="#fff"/><circle cx="${cx}" cy="${cy}" r="1.2" fill="var(--primary)"/>`;});
+  document.getElementById('oeeLine').innerHTML=lineSvg;
+
+  function niceTicks(min,max,steps=4){
+    const span=max-min, step=Math.pow(10,Math.floor(Math.log10(span/steps)));
+    const err=(steps*step)/span, s= err<=0.5? 2*step : err<=1? step : 5*step/10;
+    const tmin=Math.floor(min/s)*s, tmax=Math.ceil(max/s)*s; const arr=[]; for(let v=tmin; v<=tmax+1e-9; v+=s) arr.push(v); return arr;
+  }
+
+  const presses=[{id:'400T',tph:rndi(220,280)},{id:'250T',tph:rndi(160,210)},{id:'160T',tph:rndi(110,150)},{id:'100T',tph:rndi(90,120)}];
+  const tmax=Math.max(...presses.map(p=>p.tph)), ticks=niceTicks(0,tmax,4), colW=iw/(presses.length*1.4);
+  let tsvg=`<rect x="${pad.l}" y="${pad.t}" width="${iw}" height="${ih}" rx="8" fill="#fff" opacity=".45"/>`;
+  ticks.forEach(v=>{
+    const y=Y(v/ticks[ticks.length-1]);
+    tsvg+=`<line class="gridline" x1="${pad.l}" y1="${y}" x2="${pad.l+iw}" y2="${y}"/>`+
+          `<text class="axistext" x="${pad.l-2}" y="${y+2.2}" text-anchor="end">${nf0.format(v)}</text>`;
+  });
+  presses.forEach((p,i)=>{
+    const h=Math.max(8,(p.tph/ticks[ticks.length-1])*(ih*.9));
+    const x=pad.l+i*(colW*1.4), y=pad.t+ih-h, cx=x+colW/2;
+    tsvg+=`<rect x="${x}" y="${y}" width="${colW}" height="${h}" rx="5" fill="var(--primary)"/>`+
+          `<rect x="${cx-9}" y="${y-7}" width="18" height="6" class="pill-bg"></rect>`+
+          `<text x="${cx}" y="${y-2.4}" class="pill center">${nf0.format(p.tph)}</text>`+
+          `<text x="${cx}" y="${pad.t+ih+9}" class="axistext" text-anchor="middle">${p.id}</text>`;
+  });
+  document.getElementById('throughputCols').innerHTML=tsvg;
+
+  const machines=[
+    {id:'Press-400T',ton:400},{id:'Press-250T',ton:250},{id:'Press-160T',ton:160},{id:'Press-100T',ton:100}
+  ].map(m=>{
+    const util=rndi(45,95), temp=rndi(55,108), lube=rndi(25,80);
+    let status='Running', tag='ok'; if(util<55||temp>100){status='Attention'; tag='warn'} if(util<40||temp>110){status='Down'; tag='down'}
+    return {...m,util,temp,lube,status,tag};
+  });
+  document.getElementById('machinesBody').innerHTML=machines.map(m=>`
+    <tr>
+      <td>${m.id}</td><td>${m.ton}</td><td>${m.util}%</td><td>${m.temp}</td><td>${m.lube}</td>
+      <td><span class="tag ${m.tag}">${m.status}</span></td>
+    </tr>
+  `).join('');
+})();
+</script>
+</body>
+</html>
